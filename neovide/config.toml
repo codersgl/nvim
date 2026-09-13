@@ -1,0 +1,145 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Neovide 配置（Windows 侧）
+#
+# 部署位置：%APPDATA%\neovide\config.toml
+#          即 C:\Users\<用户名>\AppData\Roaming\neovide\config.toml
+# 本文件在 nvim 配置仓库里留档；改动后复制过去。0.12.1+ 支持热重载 [font]。
+#
+# 优先级：命令行参数 > 环境变量 > config.toml
+# 但 nvim 的 `guifont` 选项优先级更高——只要 init.lua 里设了 vim.o.guifont，
+# 整个 [font] 段（含 features / 粗斜体）都会被覆盖。
+# 因此本仓库策略：字体只在 config.toml 管，lua/config/options.lua 里保持注释。
+#
+# 版本差异（本机实测 Neovide 0.16.2，以下两种写法都支持）：
+#   * 字符串数组  normal = ["A", "B"]                       0.11+ 均可，无法指定字重
+#   * array-of-tables  [[font.normal]] + family/style       0.16+
+#   * font.bold / font.italic / font.bold_italic 这几个独立 face 键是 0.16+ 才有
+#
+# ⚠️ 同一个键要写多个字体时，表头必须用【双括号】：[[font.normal]]
+#    写成单括号 [font.normal] 两次，TOML 会认为是「同一个表赋值两遍」→ 重复键报错，
+#    整个配置可能被丢掉。双括号才表示「往数组里再追加一项」。
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── 窗口 ────────────────────────────────────────────────────────────────────
+frame = "full"      # full（默认，带完整装饰）/ none（无边框，之后无法移动缩放）
+                    # macOS 另有 transparent / buttonless
+size = "1400x900"   # 初始窗口像素尺寸；与 grid、maximized 三者互斥，只能留一个
+# grid = "120x35"   # 想按「列数x行数」开窗就用这个（0.12+），同上互斥
+# maximized = true  # 与 size / grid 互斥
+vsync = true        # 关掉后 g:neovide_refresh_rate 才生效
+
+# WSL：nvim 跑在 WSL 里、Neovide 是 Windows 程序时，等价于命令行 --wsl。
+# 如果你是用 `neovide --wsl` / 快捷方式带 --wsl 启动，这里保持注释即可。
+# wsl = true
+# neovim-bin = "/usr/bin/nvim"   # 找不到 nvim 时才需要
+
+# ── 字体 ────────────────────────────────────────────────────────────────────
+[font]
+# size 是整条 fallback 链共用的字号（单位：点），等价于 guifont 的 :hNN。
+# 保持 14.0 的理由（实测字形数据，不是拍脑袋）：
+#   Caskaydia Cove 帽高 1420/2048 = 0.693 em
+#   文楷等宽     帽高  695/1000 = 0.695 em
+# 两者相差 0.3%，几乎同高，中英文不会一个显大一个显小 → 不需要拿 size 硬凑。
+size = 14.0
+
+# normal / bold / italic 各是一条「逐字形回退链」：前面的字体没有该字形才往后找。
+# 每个 font.* 键都必须是【数组】或 table，写成带逗号的字符串 "A,B"
+# （那是 guifont 的语法）会被当成一个字体族名，中文不会按预期回退。
+#
+# 拉丁主字体：CaskaydiaCove Nerd Font（= Cascadia Code + Nerd 图标）
+# 中文回退：  LXGW WenKai Mono / 霞鹜文楷等宽
+#   —— 选它的决定因素是「严格 2:1」：实测 中 = 1000/1000 em、M = 500/1000 em，
+#      汉字宽度恰好是拉丁字符的 2 倍。Neovim 按「CJK 占 2 格」排版，
+#      等宽 CJK 才能把这个格子填满、列与列严丝合缝。
+#   —— 换成微软雅黑这类非等宽字体时，汉字宽度不等于拉丁的整数倍，
+#      行内中英混排就会左右晃动、对不齐，这是「中文不好看」的真正主因。
+#
+# ⚠️ 族名务必照抄，写错不会报错，只会静默回退到系统默认中文字体：
+#   "CaskaydiaCove Nerd Font"  该字体的 Typographic Family（非 "CaskaydiaCove NF"）
+#   "LXGW WenKai Mono"         霞鹜文楷等宽，Regular
+#   "LXGW WenKai Mono Medium"  注意：Medium/Light 是【独立族名】不是字重，
+#                              所以配 style = "Regular"，别写 style = "Medium"
+#   中文字体名可直接填中文 "霞鹜文楷等宽"，但英文名在 TOML 里无需转义，更省事。
+
+[[font.normal]]
+family = "CaskaydiaCove Nerd Font"
+style = "Regular"
+
+[[font.normal]]
+family = "LXGW WenKai Mono"
+style = "Regular"
+
+# 粗体：文楷等宽没有 Bold 字面（只有 Light / Regular / Medium 三个族），
+# 用 Medium 近似加粗，视觉上接近半粗，且三个族度量完全一致、不会破坏 2:1。
+# 各变体不必把 normal 链再抄一遍：某个字形在本变体链里找不到时，
+# 会自动回落到 normal 链的同字重。这里两条都写全，是为了让 Latin 用真 SemiBold、
+# CJK 用 Medium，而不是被整体合成加粗。
+[[font.bold]]
+family = "CaskaydiaCove Nerd Font"
+style = "SemiBold"
+
+[[font.bold]]
+family = "LXGW WenKai Mono Medium"
+style = "Regular"
+
+# 斜体：Caskaydia 有真 Italic 字面走它；文楷等宽只有 Regular，
+# 命中的是 Regular 字形（不歪），中文字形也就不会左右晃。
+[[font.italic]]
+family = "CaskaydiaCove Nerd Font"
+style = "Italic"
+
+[[font.italic]]
+family = "LXGW WenKai Mono"
+style = "Regular"
+
+# bold_italic 没写 → 自动回落到 normal 链（Caskaydia Regular + 文楷 Regular）。
+# 想让它也精确，照 font.bold 的样子加一段 [font.bold_italic] 即可。
+
+# 渲染微调（可选）：edging / hinting 与 guifont 的 #e- / #h- 等价。
+# 先都用默认值；中文笔画挤成墨团时，再按下面顺序试（0.12.1+ 可热重载）：
+#   hinting = "full"          # full（默认）/ normal / slight / none
+#                              # 笔画糊 → 先试 "slight" 或 "none"
+#   edging  = "antialias"     # antialias（默认）/ subpixelantialias / alias
+#                              # Windows 上 subpixelantialias 更锐，但需 ClearType 配合
+# underline_offset = -1.0     # 下划线相对基线偏移，正数往下、负数往上
+# 注意：中文笔画密，渲染选项对它的观感影响比英文大得多，值得单独调一轮。
+
+# OpenType 特性：键名必须和上面 family 写得完全一致，否则静默不生效。
+# 中文字体一般不需要 feature，不用给文楷加。
+[font.features]
+"CaskaydiaCove Nerd Font" = ["+calt", "+liga"]
+
+# ── 制表/画框字符 ───────────────────────────────────────────────────────────
+# Nerd Font / 画框字形在 linespace > 0 时容易出现断缝，可改用原生绘制。
+# 文楷等宽虽然自带 ─ │ 等字形，但交给 Neovide 原生画更整齐，保持 native。
+[box-drawing]
+mode = "native"     # font-glyph / native（默认）/ selected-native
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 下面这些 g:neovide_* 变量属于 Neovim 侧，不能写进本文件，放 init.lua：
+#   vim.g.neovide_scale_factor = 1.0
+#   vim.g.neovide_opacity = 0.85        # 透明背景：本文件里【没有】对应键，
+#   vim.g.neovide_normal_opacity = 0.8  # 只能写在 lua/config/options.lua
+#   vim.g.neovide_input_ime = true / false
+#   vim.g.neovide_padding_top / bottom / left / right
+#   vim.g.neovide_corner_preference = "round_small"   # 圆角，仅 Windows，0.16+
+# 注：g:neovide_background_color 已于 0.16.0 移除，写了不生效；
+#     g:neovide_transparency 是 opacity 的废弃别名，也别再用。
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 觉得字还是小/大，按顺序试：
+#   1. 改上面的 [font].size（14.0 → 15.0 / 16.0，任选浮点值）
+#   2. 整窗等比缩放：在 init.lua 里设置（不改字体定义本身）
+#        if vim.g.neovide then vim.g.neovide_scale_factor = 1.1 end
+#   3. 若中英文大小仍不协调，那是字体 em 设计问题，换等宽 CJK 字体
+#      （Sarasa Mono SC / Noto Sans Mono CJK SC），别用 size 硬凑
+#
+# 排查「配置到底有没有生效」：
+#   * 字体族变了（例如变成 Fira Code）= config.toml 没被读到，检查路径与 TOML 语法
+#   * 中文字形变回雅黑/宋体 = 族名写错，静默回退了。用下面这条把可用族名列出来：
+#       :lua print(vim.fn.system("fc-list : family"))   # 仅 Linux 侧有效
+#     Windows 侧字体在 Neovide 进程里解析，最可靠的是改完看窗口有没有变化
+#   * 0.12.1+ 改完 config.toml 回到窗口即热重载；没反应就重启 Neovide
+#   * 启动时加 --log，日志里会打印配置解析结果
+# ─────────────────────────────────────────────────────────────────────────────
