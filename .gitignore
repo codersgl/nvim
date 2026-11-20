@@ -6,3 +6,13 @@ debug
 foo.*
 *.log
 data
+.npm-cache
+.dsh-test/
+
+# Machine-local tool directories
+.agents/
+.aws/
+.codex/
+
+# Machine-local VSCode settings snapshot (contains local paths and secrets)
+vscode/settings.json

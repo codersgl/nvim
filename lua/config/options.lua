@@ -1,5 +1,81 @@
 -- Options are automatically loaded before lazy.nvim startup
 -- Default options that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/options.lua
 -- Add any additional options here
--- vim.o.guifont = "Hack Nerd Font"
-vim.o.guifont = "SauceCodePro Nerd Font"
+--
+-- ── Neovide 字体 ────────────────────────────────────────────────────────────
+-- 字体统一由 Neovide 的 config.toml 管理：
+--   仓库留档  neovide/config.toml
+--   实际生效  %APPDATA%\neovide\config.toml（Windows 侧）
+--             C:\Users\石国亮\AppData\Roaming\neovide\config.toml
+-- 为什么不在这里设 guifont：guifont 优先级高于 config.toml，一旦设置会
+-- 整体覆盖整个 [font] 段（含 features 与粗/斜体变体），所以保持注释。
+-- 换字体/字号请改 config.toml，0.12.1+ 可热重载 [font]，否则重启 Neovide。
+--
+-- 当前生效组合（2025 起）：拉丁 CaskaydiaCove Nerd Font + 中文 LXGW WenKai Mono
+-- 选文楷等宽的关键理由是「严格 2:1」：汉字 1000/1000 em、拉丁 M 500/1000 em，
+-- 汉字宽度恰好是拉丁字符 2 倍，能填满 Neovim 给 CJK 分配的两种字宽格子。
+-- 换成微软雅黑这类非等宽字体，汉字宽度不是拉丁的整数倍，中英混排就歪。
+-- 且两字体帽高 0.693 / 0.695 em，几乎同高，14pt 无需另外调 size。
+--
+-- 以下为备查的等价 guifont 写法：逗号分隔 = 逐字形回退链。
+-- ⚠️ guifont 只能写字符串，无法表达 [[font.bold]] 这类分变体配置；
+--    这里列出的值仅用于临时 `:set guifont=...` 试看效果。
+-- ⚠️ 选项（:h12 等）对整条链统一生效，无法给中文字体单独设字号。
+-- vim.o.guifont = "CaskaydiaCove Nerd Font:h14,LXGW WenKai Mono:h14"
+-- vim.o.guifont = "Maple Mono NF CN:h14"
+-- vim.o.guifont = "Sarasa Mono SC:h14,Maple Mono NF CN:h14"
+--
+-- 中文显示三个高频坑：
+--   1. 不写中文字体（或只写 Noto Sans CJK 不带 SC）→ 系统自行回退，
+--      可能拿到日文字形，且不报错。
+--   2. config.toml 里多字体必须用「双括号」数组写法 [[font.normal]]；
+--      写成两次单括号 [font.normal] 是同一个表赋两遍值 → TOML 重复键报错。
+--      早期版本兼容的 normal = ["A", "B"] 字符串数组仍可用，但无法分变体设字重。
+--   3. 中英文宽度不齐时，优先换「等宽」CJK 字体：
+--      LXGW WenKai Mono / Sarasa Mono SC / Noto Sans Mono CJK SC；
+--      必要时再调 ambiwidth。别用 [font].size 硬凑，那是 em 设计问题。
+--
+-- 中文输入（IME，默认开）。若普通模式下输入法抢按键，可只在这些时机开启：
+-- vim.g.neovide_input_ime = false
+-- local ime = vim.api.nvim_create_augroup("neovide_ime", { clear = true })
+-- vim.api.nvim_create_autocmd({ "InsertEnter", "CmdlineEnter" }, {
+--   group = ime,
+--   callback = function() vim.g.neovide_input_ime = true end,
+-- })
+-- vim.api.nvim_create_autocmd({ "InsertLeave", "CmdlineLeave" }, {
+--   group = ime,
+--   callback = function() vim.g.neovide_input_ime = false end,
+-- })
+
+-- ── Neovide 透明背景 ────────────────────────────────────────────────────────
+-- 本机 Neovide 0.16.2。这些变量属于 Neovim 侧，写不进 config.toml（那里没有对应键），
+-- 所以透明必须在这里设；改完 :source $MYVIMRC 或重启 Neovide 生效。
+--
+-- 只需要这一个开关：0.0 全透明 ~ 1.0 不透明。默认 1.0。
+if vim.g.neovide then
+  vim.g.neovide_opacity = 1.0
+  -- 想自己微调：普通模式下 :lua vim.g.neovide_opacity = 0.8 立即看到效果
+end
+
+-- normal_opacity：只作用于「正文背景」那一层，浮窗/命令行/标题栏仍按 opacity。
+-- 走读 Neovide 源码（src/renderer/mod.rs draw_frame）确认了实际语义：
+--     opacity = if normal_opacity < 1.0 then normal_opacity else opacity  -- 二选一，不相乘
+--   即：一旦把 normal_opacity 设成小于 1，就会【取代】opacity 成为整窗透明度，
+--   而不是在它基础上再叠一层。所以两者只调一个，别同时调。
+-- 它的用处是「背景更透、文字仍实」：写代码时比单纯降 opacity 更清楚。
+-- vim.g.neovide_normal_opacity = 0.8
+
+-- ⚠️ 三个常见误区（网上老教程多已过时）：
+--   1. g:neovide_background_color 在 0.16.0 已被【彻底移除】，设了不再有任何效果。
+--      同理 g:neovide_transparency 是 opacity 的废弃别名，源码里已被过滤，别再用。
+--   2. 配色方案的 transparent = true 不是必需项，也【不能单独生效】：
+--      Neovide 仍会用 Normal 的背景色去填充画布，只是按 opacity 带上了 alpha。
+--      所以透明度只能靠 opacity / normal_opacity 控制。
+--      想开配色透明（让 Normal.bg 为空）多数是为了少一层色块，可按喜好决定。
+--   3. Windows 上不需要额外设置：Neovide 无条件 with_transparent(true)，
+--      且非 OpenGL 后端会启用 no_redirection_bitmap 来获得逐像素 alpha。
+--
+-- 系统级联动（可选，不在本文件）：
+--   * 想在 Windows 上「开着终端也透出桌面」，需系统设置里开透明效果：
+--     设置 → 个性化 → 颜色 → 透明效果（关掉它会让某些场景下不透明）
+--   * Windows 圆角：config.toml 里 vim.g.neovide_corner_preference = "round_small"（0.16+）

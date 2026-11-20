@@ -5,6 +5,13 @@ local map = vim.keymap.set
 
 map("i", "jk", "<Esc>")
 
+-- 终端缓冲区里也用 jk 回到 Normal 模式（和 insert 模式保持一致）
+-- 为什么这一个就够: t 模式是全局映射，:terminal 的终端 buffer、snacks 的浮动
+--   终端、其它插件的终端全都生效；Esc 完全不碰，codex / claude code 的“Esc 中断”
+--   不受影响，也不用记 <C-\><C-n>。
+-- 代价: j 是 jk 的前缀，终端里单独敲 j 会等 timeoutlen 才发给程序（LazyVim 默认 300ms）。
+map("t", "jk", "<C-\\><C-n>", { desc = "退出终端模式" })
+
 -- ============================================================
 -- 把图片复制到 Windows 剪贴板（WSL 环境）—— 方向: nvim 图片 → Windows 剪贴板
 -- 用法:
@@ -28,8 +35,14 @@ local function is_image(fname)
     return false
   end
   ext = ext:lower()
-  return ext == "png" or ext == "jpg" or ext == "jpeg" or ext == "gif" or ext == "bmp"
-    or ext == "webp" or ext == "ico" or ext == "tiff"
+  return ext == "png"
+    or ext == "jpg"
+    or ext == "jpeg"
+    or ext == "gif"
+    or ext == "bmp"
+    or ext == "webp"
+    or ext == "ico"
+    or ext == "tiff"
 end
 
 local M = {}
@@ -54,12 +67,12 @@ function M.copy_image(path)
   end
   -- 写临时 .ps1 再执行，避开 vim.fn.system 经 shell 展开 $ 的坑
   local ps1_path = vim.fn.tempname() .. ".ps1"
-  local ps = ([[Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+  local ps = [[Add-Type -AssemblyName System.Windows.Forms,System.Drawing
 $img=[System.Drawing.Image]::FromFile('%s')
 [System.Windows.Forms.Clipboard]::SetImage($img)
 $img.Dispose()
 Write-Output 'SET_OK'
-]])
+]]
   local file = io.open(ps1_path, "w")
   if not file then
     vim.notify("CopyImage: 无法创建临时 ps1", vim.log.levels.ERROR)
@@ -68,8 +81,7 @@ Write-Output 'SET_OK'
   file:write(string.format(ps, win_path))
   file:close()
   local win_ps1 = vim.fn.system("wslpath -w " .. vim.fn.shellescape(ps1_path)):gsub("\n", "")
-  local cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File "
-    .. vim.fn.shellescape(win_ps1)
+  local cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File " .. vim.fn.shellescape(win_ps1)
   local out = vim.fn.system(cmd)
   -- 清理临时文件
   os.remove(ps1_path)
@@ -112,5 +124,52 @@ map("v", "<leader>yi", function()
   end
   M.copy_image(sel)
 end, { desc = "Copy image (selection) to clipboard" })
+
+-- ============================================================
+-- 用 Windows 默认程序打开文件 / 图片
+-- Neovide 没有内联图片支持，这就是 Neovide 里的看图方式。
+-- 为什么不用 vim.ui.open(): WSL 里的 xdg-open 没有 Windows 转发逻辑
+-- (本机未装 wslu/wslview)，直接 explorer.exe + wslpath 最稳；非 WSL 环境自动退回。
+-- 用法: <leader>xo 打开当前文件；可视模式选中路径后 <leader>xo 打开它
+-- ============================================================
+local function open_external(path)
+  path = vim.fn.expand(path or "%:p")
+  if path == "" or vim.fn.filereadable(path) == 0 then
+    vim.notify("open_external: 找不到文件 " .. path, vim.log.levels.WARN)
+    return
+  end
+  if vim.fn.executable("wslpath") == 1 and vim.fn.executable("explorer.exe") == 1 then
+    local win_path = vim.fn.system({ "wslpath", "-w", path }):gsub("%s+$", "")
+    vim.system({ "explorer.exe", win_path }, { detach = true })
+  else
+    vim.ui.open(path)
+  end
+end
+
+map("n", "<leader>xo", function()
+  open_external("%:p")
+end, { desc = "用系统程序打开当前文件" })
+
+map("x", "<leader>xo", function()
+  local region_type = vim.fn.mode() == "V" and "V" or "v"
+  local sel = table.concat(vim.fn.getregion(vim.fn.getpos("v"), vim.fn.getpos("."), { type = region_type }), "")
+  open_external(sel)
+end, { desc = "用系统程序打开选中的路径" })
+
+-- 图片内联渲染开关（只在支持 sixel/kitty 的终端里有效；Neovide 下 image.nvim 已禁用）
+map("n", "<leader>uo", function()
+  local ok, image = pcall(require, "image")
+  if not ok then
+    vim.notify("image.nvim 未加载（Neovide 下已禁用，请用 <leader>xo 打开图片）", vim.log.levels.WARN)
+    return
+  end
+  if image.is_enabled() then
+    image.disable()
+    vim.notify("图片内联渲染: 关闭")
+  else
+    image.enable()
+    vim.notify("图片内联渲染: 开启")
+  end
+end, { desc = "切换图片内联渲染" })
 
 return M

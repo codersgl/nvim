@@ -1,0 +1,317 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  keybindings.json —— 让 VSCode + VSCodeVim 尽量贴合本机 LazyVim 的手感
+//
+//  ★ 为什么这里只有几十条？看完这段就不会觉得少了：
+//
+//    VSCode 解析按键的优先级是：
+//        keybindings.json(本文件)  >  扩展贡献的键位  >  VSCodeVim 内部映射
+//
+//    凡是 vim 各模式下的键（<leader>ff、<leader>ca、gd、[d、<A-j>…）都写在
+//    settings.json 的 vim.*ModeKeyBindingsNonRecursive 里 —— 那边用的是
+//    **真正的 vim 记法**（<leader>| 、<C-/> 、<A-j> 、[b），而本文件的 key 字段
+//    是「VSCode 按键名」写法（ctrl+/ 、shift+\），表达 <leader>| 得写
+//    "space shift+\\"，别扭又依赖键盘布局。
+//
+//    所以本文件只负责四类键：
+//      (1) 跨「区域」的方向移动（编辑区 / 文件树 / 终端）；
+//      (2) 文件树内部的动作单键（对齐 snacks explorer）；
+//      (3) VSCode 自己已占住、VSCodeVim 抢不过的键（ctrl+j / ctrl+k）；
+//      (4) 需要在编辑器之外也生效的键（ctrl+/ 切终端）。
+//
+//  ★ 完整键位表见同目录 README.md
+//  ★ 改完记得重启 VSCode，或 Ctrl+Shift+P → Developer: Reload Window
+// ═══════════════════════════════════════════════════════════════════════════
+[
+  // ── 跨区域方向移动：编辑区 ↔ 文件树 ↔ 终端 ──────────────────────────────
+  //
+  // 用的是 VSCode 自带的四个命令（菜单里叫
+  //   View: Navigate to the View on the Left / Right / Above / Below）：
+  //     workbench.action.navigateLeft / Right / Up / Down
+  //
+  // 它们的语义恰好就是 nvim 的 <C-h> <C-j> <C-k> <C-l>：
+  //   · 焦点在编辑器：先跳到该方向的相邻 editor group（分屏）；
+  //                   该方向没有分屏时 → 跳到相邻「区域」
+  //                   （左 = 文件树，下 = 面板/终端，右 = 右侧栏）
+  //   · 焦点在文件树 / 面板：跳到该方向可见的相邻区域
+  //
+  // 为什么用它、而不是逐个手写 focusLeftGroup 之类：
+  //   1. 只有一个编辑组时，focusLeftGroup 什么都不做 —— 这正是「编辑区跳不到
+  //      文件树」的原因；navigate* 会回落到相邻区域，四个方向行为一致。
+  //   2. 这四个命令**默认没有绑定任何键**（已在本机 Workbench 里确认），
+  //      正好空出来。
+  //   3. 它们都在 terminal.integrated.commandsToSkipShell 的内置默认列表里，
+  //      所以在终端里也能生效。
+  //
+  // ⚠️ 注意：区域本身不可见时不会「顺手打开」它（和 vim 里方向没有窗口就
+  //    什么都不做一致）。文件树用 <leader>e 开，终端用 <C-/> 或 <leader>t 开。
+
+  // (1) 编辑器里：仅 Normal 模式抢键
+  //     —— 保留插入模式的 C-h 退格 / C-k 签名帮助，保留 Visual 模式下
+  //        VSCodeVim 的 C-j / C-k 行移动（nvim 也是只在 Normal 映射）。
+  {
+    "key": "ctrl+h",
+    "command": "workbench.action.navigateLeft",
+    "when": "editorTextFocus && vim.active && vim.mode == 'Normal'"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "workbench.action.navigateDown",
+    "when": "editorTextFocus && vim.active && vim.mode == 'Normal'"
+  },
+  {
+    "key": "ctrl+k",
+    "command": "workbench.action.navigateUp",
+    "when": "editorTextFocus && vim.active && vim.mode == 'Normal'"
+  },
+  {
+    "key": "ctrl+l",
+    "command": "workbench.action.navigateRight",
+    "when": "editorTextFocus && vim.active && vim.mode == 'Normal'"
+  },
+
+  // (2) 文件树（左侧边栏）里
+  {
+    "key": "ctrl+h",
+    "command": "workbench.action.navigateLeft",
+    "when": "sideBarFocus"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "workbench.action.navigateDown",
+    "when": "sideBarFocus"
+  },
+  {
+    "key": "ctrl+k",
+    "command": "workbench.action.navigateUp",
+    "when": "sideBarFocus"
+  },
+  {
+    "key": "ctrl+l",
+    "command": "workbench.action.navigateRight",
+    "when": "sideBarFocus"
+  },
+
+  // (3) 面板里的「非终端」视图（问题 / 输出 / 调试控制台）
+  //     排除 terminalFocus，理由见下面 (4)
+  {
+    "key": "ctrl+h",
+    "command": "workbench.action.navigateLeft",
+    "when": "panelFocus && !terminalFocus"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "workbench.action.navigateDown",
+    "when": "panelFocus && !terminalFocus"
+  },
+  {
+    "key": "ctrl+k",
+    "command": "workbench.action.navigateUp",
+    "when": "panelFocus && !terminalFocus"
+  },
+  {
+    "key": "ctrl+l",
+    "command": "workbench.action.navigateRight",
+    "when": "panelFocus && !terminalFocus"
+  },
+
+  // (4) 终端里：只接管 ctrl+k（跳回编辑区）
+  //
+  // 为什么只有 ctrl+k，而不是四个都接：
+  //   终端里按键要不要交给 VSCode，取决于命令是否在
+  //   terminal.integrated.commandsToSkipShell 的内置 159 条默认列表里。
+  //   一旦绑定，shell 就收不到那个键了：
+  //     Ctrl+H → 退格      ← 不能抢
+  //     Ctrl+L → 清屏      ← 不能抢
+  //     Ctrl+J → 换行      ← 不抢；VSCode 默认已把它占为「开关面板」，
+  //                          按下去正好退回编辑区
+  //     Ctrl+K → readline 的「删到行尾」；但 VSCode 默认就把 Ctrl+K 当作
+  //              chord 前缀吞掉了（terminal.integrated.allowChords 默认 true），
+  //              这个键在终端里本来就用不了 → 拿来跳回编辑区是白赚的
+  //
+  // 换句话说：<C-k> 从终端跳回编辑区；想再去文件树，接着按 <C-h> 即可。
+  //
+  //     ┌─ 想让 Ctrl+H / Ctrl+L 也接管（四个方向完全对称）？───────────┐
+  //     │ 在 settings.json 里加：                                      │
+  //     │   "terminal.integrated.commandsToSkipShell": [               │
+  //     │     "workbench.action.navigateLeft",                         │
+  //     │     "workbench.action.navigateRight"                         │
+  //     │   ]                                                          │
+  //     │ 再把这里改成四个方向都绑。代价是终端里退格 Ctrl+H 和清屏     │
+  //     │ Ctrl+L 会失效。本机 nvim 配置明显很在意「不抢终端按键」      │
+  //     │（见 lua/config/keymaps.lua 里关于 Esc 那段注释），默认不这么干。│
+  //     └──────────────────────────────────────────────────────────────┘
+  {
+    "key": "ctrl+k",
+    "command": "workbench.action.focusActiveEditorGroup",
+    "when": "terminalFocus"
+  },
+
+  // ── 文件树单键：对齐你 nvim 里的 snacks explorer ─────────────────────────
+  //
+  // 守卫条件不是猜的，是 VSCode 自己用的原话。Workbench 源码里 explorer 的
+  // 键位注册写成： r_ = T.and(AX, q3i, T.not(Bh))
+  //   其中 AX  = new Z("foldersViewVisible", …)
+  //        q3i = new Z("filesExplorerFocus", …)   ← 由树自己的 scoped
+  //                                                 contextKeyService 绑定
+  //        Bh  = "inputFocus"                          （内联输入框）
+  // 所以这里逐字照抄成 "foldersViewVisible && filesExplorerFocus && !inputFocus"，
+  // 保证只在文件树真正有焦点时生效，绝不会漏到编辑器里（在编辑器按 a 仍然
+  // 是插入字符）。
+  //
+  // snacks 的键位取自 snacks/picker/config/sources.lua 的 win.list.keys。
+  //
+  // ⚠️ 刻意接受的代价：VSCode 的树没有「模态」概念，绑定单键会占掉这些字母的
+  //    「打字跳转」——在树里直接打字母本来可以跳到同名文件
+  //    （workbench.list.typeNavigationMode 默认 "automatic"）。
+  //    snacks 是模态 buffer，所以那边单键没有这个代价。你已确认接受。
+  //    VSCode 原生键一条都没删：F2 重命名、Delete 删除、Shift+Delete 永久删除、
+  //    Ctrl+C/Ctrl+X/Ctrl+V、Enter 打开、Space 打开(保留焦点) 仍然全部可用。
+
+  // 新建（snacks: a）。VSCode 分不了「文件名末尾加 / 就是建目录」，所以拆成 a / A
+  {
+    "key": "a",
+    "command": "explorer.newFile",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+  {
+    "key": "shift+a",
+    "command": "explorer.newFolder",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+
+  // 重命名（snacks: r）
+  {
+    "key": "r",
+    "command": "renameFile",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+
+  // 删除（snacks: d）。两段式，和 VSCode 原生 Delete 的行为一致：
+  // 能进回收站就进回收站（可恢复），否则才永久删除（受 explorer.confirmDelete 保护）
+  {
+    "key": "d",
+    "command": "moveFileToTrash",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus && explorerResourceMoveableToTrash"
+  },
+  {
+    "key": "d",
+    "command": "deleteFile",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus && !explorerResourceMoveableToTrash"
+  },
+
+  // 复制 / 剪切 / 粘贴（snacks: c / m / p）
+  // VSCode 的文件树没有「直接复制到当前目录」这种一步命令，所以 c 和 y 都是
+  // 「先复制、再导航、后 p 粘贴」这套两步工作流。
+  {
+    "key": "c",
+    "command": "filesExplorer.copy",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+  {
+    "key": "m",
+    "command": "filesExplorer.cut",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+  {
+    "key": "p",
+    "command": "filesExplorer.paste",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+
+  // yank（snacks: y）。VSCode 的 filesExplorer.copy 同时做两件事：把文件路径
+  // 文本写进系统剪贴板 + 让 p 能粘贴这些文件 —— 正好等价于 snacks 的 y。
+  // 所以 y 和 c 在 VSCode 里是同一个动作，两个键都给你留着。
+  // （只要「路径文本」不要文件剪贴板，就用下面的大写 Y。）
+  {
+    "key": "y",
+    "command": "filesExplorer.copy",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+  {
+    "key": "shift+y",
+    "command": "copyRelativeFilePath",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+
+  // 刷新（snacks: u）
+  {
+    "key": "u",
+    "command": "workbench.files.action.refreshFilesExplorer",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+
+  // 定位当前文件（snacks: .）
+  {
+    "key": ".",
+    "command": "workbench.files.action.showActiveFileInExplorer",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+
+  // 用系统默认程序打开（snacks: o）
+  {
+    "key": "o",
+    "command": "revealFileInOS",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+
+  // 折叠目录 / 回到上级（snacks: h、<BS>）。VSCode 的 list.collapse 语义就是
+  // 「展开着就折叠，已折叠就跳到父项」，所以 h 一个键覆盖了 snacks 的 h 和 <BS>。
+  {
+    "key": "h",
+    "command": "list.collapse",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+
+  // 打开（snacks: l）。VSCode 原生是 Enter；list.select 就是 Enter 触发的那个命令。
+  // 万一在某些版本里 l 没反应，用 Enter 一定可以。
+  {
+    "key": "l",
+    "command": "list.select",
+    "when": "foldersViewVisible && filesExplorerFocus && !inputFocus"
+  },
+
+  // ── 跳转历史：<C-o> / <C-i> ────────────────────────────────────────────
+  //
+  // 为什么不用 VSCodeVim 自己的 jumplist：
+  //   VSCodeVim 的 <C-o> 走的是 jumpTracker.jumpBack，而它只在「VSCodeVim 原生
+  //   命令带 isJump」时才 recordJump：
+  //       this.keys=[["g","d"],["g","D"]], this.isJump=!0   ← 原生会记录
+  //   但用户 remap 的 commands 是裸执行（a.commands.executeCommand(i,...o)），
+  //   不带 isJump → 不记录。本配置里 gd / gr / gy / gI 都是 commands remap
+  //   （为了让 gd 跳「定义」而不是 VSCodeVim 默认的「声明」），于是这些跳转
+  //   全都不进 jumplist，<C-o> 自然回不去。
+  //
+  // 改用 VSCode 自己的导航历史（navigateBack / navigateForward）：
+  //   · 它由编辑器服务记录，**不管跳转是谁触发的** —— gd 的定义跳转、
+  //     <leader>gr 的引用跳转、<leader>ff / Ctrl+P 的换文件、鼠标点击，全都算
+  //   · 默认键是 Ctrl+Alt+- / Ctrl+Shift+-，这里改成 <C-o> / <C-i>
+  //   · 代价：它不记录文件内的小跳（比如 / 搜索、mark）—— VSCodeVim 的
+  //     jumplist 记这些，但不记上面的跳转。二选一，这里选了更常用的那个。
+  {
+    "key": "ctrl+o",
+    "command": "workbench.action.navigateBack",
+    "when": "editorTextFocus && vim.active && vim.mode == 'Normal'"
+  },
+  {
+    "key": "ctrl+i",
+    "command": "workbench.action.navigateForward",
+    "when": "editorTextFocus && vim.active && vim.mode == 'Normal'"
+  },
+
+  // ── 终端开关：LazyVim 的 <C-/> ─────────────────────────────────────────
+  // 第一条：焦点在编辑器里时生效，但排除插入模式，免得打字时误触。
+  // 第二条：焦点在终端面板 / 侧边栏 / 问题面板里时也生效，能当开关用。
+  //
+  // 代价：ctrl+/ 原本是 VSCode 的「切换行注释」。vim 里注释用 gcc / gc
+  //       （VSCodeVim 原生支持），所以让位给终端，和 LazyVim 一致。
+  {
+    "key": "ctrl+/",
+    "command": "workbench.action.terminal.toggleTerminal",
+    "when": "editorTextFocus && vim.active && vim.mode != 'Insert'"
+  },
+  {
+    "key": "ctrl+/",
+    "command": "workbench.action.terminal.toggleTerminal",
+    "when": "!editorTextFocus"
+  }
+]
